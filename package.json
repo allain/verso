@@ -1,0 +1,16 @@
+{
+  "name": "pager",
+  "version": "0.1.0",
+  "description": "An attempt to reduce the client side complexity considerably when writing mobile apps\"",
+  "main": "index.js",
+  "scripts": {
+		"format": "standard-format --write",
+    "test": "blue-tape test/**/*.js"
+  },
+  "author": "Allain Lalonde <allain.lalonde@gmail.com>",
+  "license": "ISC",
+  "dependencies": {
+    "blue-tape": "^1.0.0",
+    "testdouble": "^1.6.1"
+  }
+}
