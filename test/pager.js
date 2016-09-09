@@ -1,7 +1,7 @@
 const test = require('blue-tape')
+const pager = require('../lib/pager')
 
 test('setup must have at least 1 page', t => {
-  const pager = require('..')
   try {
     pager({})
     t.fail('should throw')
@@ -12,8 +12,6 @@ test('setup must have at least 1 page', t => {
 })
 
 test('pages must be keyed by valud uris', t => {
-  const pager = require('..')
-
   try {
     pager({
       'invalid': {}
@@ -25,7 +23,6 @@ test('pages must be keyed by valud uris', t => {
 })
 
 test('render rejects when uri does not match', t => {
-  const pager = require('..')
   let p = pager({
     '/': {}
   })
@@ -36,32 +33,86 @@ test('render rejects when uri does not match', t => {
 })
 
 test('render generates html', t => {
-  const pager = require('..')
   let p = pager({
     '/': {
-			render: () => {
+      render: () => {
         return '<!DOCTYPE html><html><h1>Testing</h1></html>'
-			}
-		}
+      }
+    }
   })
 
-	return p.render('/').then(html => {
-		t.equal(html, '<!DOCTYPE html><html><h1>Testing</h1></html>')
-	})
+  return p.render('/').then(html => {
+    t.equal(html, '<!DOCTYPE html><html><h1>Testing</h1></html>')
+  })
 })
 
 test('passes params to render', t => {
-  const pager = require('..')
   let p = pager({
     '/a/:a/': {
-			render: (params) => {
-        return `<!DOCTYPE html><html><h1>${params.a}</h1></html>`
-			}
-		}
+      render: (a) => {
+        return `<!DOCTYPE html><html><h1>${a}</h1></html>`
+      }
+    }
   })
 
-	return p.render('/a/10').then(html => {
-		t.equal(html, '<!DOCTYPE html><html><h1>10</h1></html>')
-	})
+  return p.render('/a/10').then(html => {
+    t.equal(html, '<!DOCTYPE html><html><h1>10</h1></html>')
+  })
 })
 
+test('render uses context passed into pager factory', t => {
+  let p = pager({
+    '/a': {
+      render: function (b) {
+        return b
+      }
+    }
+  }, {b: 'hello'})
+
+  return p.render('/a').then(html => {
+    t.equal('hello', html)
+  })
+})
+
+test('run updates the dom', t => {
+  let p = pager({
+    '/test': {
+      render: () => {
+        return '<div>Testing</div>'
+      }
+    }
+  })
+
+  return p.run('/test', {})
+    .then((el) => {
+      t.equal(el.innerHTML, '<div>Testing</div>')
+    })
+})
+
+test('run updates the dom and calls customize on it if its defined', t => {
+  let p = pager({
+    '/test': {
+      render: () => '<div>Testing</div>',
+      customize: (el) => {
+        console.log('here')
+        el.innerHTML = el.innerHTML.toUpperCase()
+      }
+    }
+  })
+
+  return p.run('/test', {}).then((el) => {
+    t.equal(el.innerHTML, '<DIV>TESTING</DIV>')
+  })
+})
+
+test('page spec may be just be a function', t => {
+  let p = pager({
+    '/test': () => {
+      return 'testing'
+    }
+  })
+
+  return p.render('/test').then(html => {
+    t.equal(html, 'testing')
+  })
+})
