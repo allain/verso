@@ -6,7 +6,7 @@ test('setup must have at least 1 page', function (t) {
   try {
     verso({})
     t.fail('should throw')
-  } catch(err) {
+  } catch (err) {
     t.equal(err.message, 'no pages defined')
     t.end()
   }
@@ -17,7 +17,7 @@ test('pages must be keyed by valud uris', function (t) {
     verso({
       'invalid': {}
     })
-  } catch(err) {
+  } catch (err) {
     t.equal(err.message, 'invalid uri: invalid')
     t.end()
   }
@@ -83,7 +83,9 @@ test('run updates the dom', function (t) {
 test('run updates the dom and calls customize on it if its defined', function (t) {
   return verso({
     '/test': {
-      render: function () { return '<div>Testing</div>' },
+      render: function () {
+        return '<div>Testing</div>'
+      },
       customize: function (el) {
         el.innerHTML = el.innerHTML.toUpperCase()
       }
@@ -122,4 +124,66 @@ test('render may just be a string', function (t) {
   }).run('/test', {}).then(function (el) {
     t.equal(el.innerHTML, 'TESTING')
   })
+})
+
+test('compile only renders from root', function (t) {
+  return verso({
+    '/': 'a',
+    '/test': 'test'
+  }).compile()
+      .then(function (result) {
+        t.deepEqual(result, {
+          '/': 'a'
+        })
+      })
+})
+
+test('compile crawls out from root', function (t) {
+  return verso({
+    '/': '<div><a href="/a">A</a></div>',
+    '/a': '<div><a href="/b">B</a><a href="/c">C</a></div>',
+    '/b': 'leaf B',
+    '/c': 'leaf C'
+  }).compile()
+      .then(function (result) {
+        t.deepEqual(result, {
+          '/': '<div><a href="/a">A</a></div>',
+          '/a': '<div><a href="/b">B</a><a href="/c">C</a></div>',
+          '/b': 'leaf B',
+          '/c': 'leaf C'
+        })
+      })
+})
+
+test('compile handles loops', function(t) {
+  return verso({
+    '/': '<div><a href="/a">A</a></div>',
+    '/a': '<div><a href="/b">B</a></div>',
+    '/b': '<div><a href="/a">A</a></div>',
+    '/c': 'leaf C'
+  }).compile()
+      .then(function(result) {
+        t.deepEqual(result, {
+          '/': '<div><a href="/a">A</a></div>',
+          '/a': '<div><a href="/b">B</a></div>',
+          '/b': '<div><a href="/a">A</a></div>'
+        })
+      })
+})
+
+
+test('compile handles dynamic pages', function(t) {
+  return verso({
+    '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
+    '/:name': function(name) {
+      return '<div>' + name + '</div>'
+    }
+  }).compile()
+      .then(function(result) {
+        t.deepEqual(result, {
+          '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
+          '/a': '<div>a</div>',
+          '/b': '<div>b</div>'
+        })
+      })
 })
