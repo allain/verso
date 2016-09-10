@@ -103,10 +103,23 @@ test('page spec may be just be a function', function (t) {
   })
 })
 
-test('render may just be a string', function (t) {
+test('spec may just be a string', function (t) {
   return verso({
     '/test': 'testing'
   }).render('/test').then(function (html) {
     t.equal(html, 'testing')
+  })
+})
+
+test('render may just be a string', function (t) {
+  return verso({
+    '/test': {
+      render: 'testing',
+      customize: function (el) {
+        el.innerHTML = el.innerHTML.toUpperCase()
+      }
+    }
+  }).run('/test', {}).then(function (el) {
+    t.equal(el.innerHTML, 'TESTING')
   })
 })
