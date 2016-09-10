@@ -1,8 +1,7 @@
-var test = require('blue-tape')
+const test = require('blue-tape')
+const verso = require('..')
 
-var verso = require('..')
-
-test('setup must have at least 1 page', function (t) {
+test('setup must have at least 1 page', t => {
   try {
     verso({})
     t.fail('should throw')
@@ -12,7 +11,7 @@ test('setup must have at least 1 page', function (t) {
   }
 })
 
-test('pages must be keyed by valud uris', function (t) {
+test('pages must be keyed by valud uris', t => {
   try {
     verso({
       'invalid': {}
@@ -23,7 +22,7 @@ test('pages must be keyed by valud uris', function (t) {
   }
 })
 
-test('render rejects when uri does not match', function (t) {
+test('render rejects when uri does not match', t => {
   return verso({
     '/': {}
   }).render('/missing').then(t.fail, function (err) {
@@ -31,89 +30,79 @@ test('render rejects when uri does not match', function (t) {
   })
 })
 
-test('render generates html', function (t) {
+test('render generates html', t => {
   return verso({
     '/': {
-      render: function () {
+      render: () => {
         return '<!DOCTYPE html><html><h1>Testing</h1></html>'
       }
     }
-  }).render('/').then(function (html) {
+  }).render('/').then(html => {
     t.equal(html, '<!DOCTYPE html><html><h1>Testing</h1></html>')
   })
 })
 
-test('passes params to render', function (t) {
+test('passes params to render', t => {
   return verso({
     '/a/:a/': {
-      render: function (a) {
+      render: a => {
         return '<!DOCTYPE html><html><h1>' + a + '</h1></html>'
       }
     }
-  }).render('/a/10').then(function (html) {
+  }).render('/a/10').then(html => {
     t.equal(html, '<!DOCTYPE html><html><h1>10</h1></html>')
   })
 })
 
-test('render uses context passed into verso factory', function (t) {
+test('render uses context passed into verso factory', t => {
   return verso({
     '/a': {
-      render: function (b) {
-        return b
-      }
+      render: b => b
     }
-  }, {b: 'hello'}).render('/a').then(function (html) {
+  }, {b: 'hello'}).render('/a').then(html => {
     t.equal('hello', html)
   })
 })
 
-test('run updates the dom', function (t) {
+test('run updates the dom', t => {
   return verso({
-    '/test': {
-      render: function () {
-        return '<div>Testing</div>'
-      }
-    }
+    '/test': '<div>Testing</div>'
   }).run('/test', {})
-    .then(function (el) {
+    .then(el => {
       t.equal(el.innerHTML, '<div>Testing</div>')
     })
 })
 
-test('run updates the dom and calls customize on it if its defined', function (t) {
+test('run updates the dom and calls customize on it if its defined',  t => {
   return verso({
     '/test': {
-      render: function () {
-        return '<div>Testing</div>'
-      },
+      render: '<div>Testing</div>',
       customize: el => {
         el.innerHTML = el.innerHTML.toUpperCase()
       }
     }
-  }).run('/test', {}).then(function (el) {
+  }).run('/test', {}).then(el => {
     t.equal(el.innerHTML, '<DIV>TESTING</DIV>')
   })
 })
 
-test('page spec may be just be a function', function (t) {
+test('page spec may be just be a function', t => {
   return verso({
-    '/test': function () {
-      return 'testing'
-    }
-  }).render('/test').then(function (html) {
+    '/test': () => 'testing'
+  }).render('/test').then(html => {
     t.equal(html, 'testing')
   })
 })
 
-test('spec may just be a string', function (t) {
+test('spec may just be a string', t => {
   return verso({
     '/test': 'testing'
-  }).render('/test').then(function (html) {
+  }).render('/test').then(html => {
     t.equal(html, 'testing')
   })
 })
 
-test('render may just be a string', function (t) {
+test('render may just be a string', t => {
   return verso({
     '/test': {
       render: 'testing',
@@ -126,7 +115,7 @@ test('render may just be a string', function (t) {
   })
 })
 
-test('compile only renders from root', function (t) {
+test('compile only renders from root', t => {
   return verso({
     '/': 'a',
     '/test': 'test'
@@ -138,14 +127,14 @@ test('compile only renders from root', function (t) {
       })
 })
 
-test('compile crawls out from root', function (t) {
+test('compile crawls out from root', t => {
   return verso({
     '/': '<div><a href="/a">A</a></div>',
     '/a': '<div><a href="/b">B</a><a href="/c">C</a></div>',
     '/b': 'leaf B',
     '/c': 'leaf C'
   }).compile()
-      .then(function (result) {
+      .then(result => {
         t.deepEqual(result, {
           '/': '<div><a href="/a">A</a></div>',
           '/a': '<div><a href="/b">B</a><a href="/c">C</a></div>',
@@ -155,7 +144,7 @@ test('compile crawls out from root', function (t) {
       })
 })
 
-test('compile handles loops', function(t) {
+test('compile handles loops', t => {
   return verso({
     '/': '<div><a href="/a">A</a></div>',
     '/a': '<div><a href="/b">B</a></div>',
@@ -172,12 +161,12 @@ test('compile handles loops', function(t) {
 })
 
 
-test('compile handles dynamic pages', function(t) {
+test('compile handles dynamic pages', t => {
   return verso({
     '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
     '/:name': name => `<div>${name}</div>`
   }).compile()
-      .then((result) => {
+      .then(result => {
         t.deepEqual(result, {
           '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
           '/a': '<div>a</div>',
@@ -186,7 +175,7 @@ test('compile handles dynamic pages', function(t) {
       })
 })
 
-test('real world compile example', function(t) {
+test('real world compile example', t => {
   return verso({
     '/': contacts => `<div>${contacts.map(contact => `<a href="/contact/${contact.id}">${contact.name}</a>`).join('')}</div>`,
     '/contact/:id': (id, contacts) => {
@@ -199,7 +188,7 @@ test('real world compile example', function(t) {
       {id: 2, name: 'Debby'}
     ]
   }).compile()
-      .then(function(result) {
+      .then(result => {
         t.deepEqual(result, {
           '/': '<div><a href="/contact/1">Allain</a><a href="/contact/2">Debby</a></div>',
           '/contact/1': '<div>Allain\'s Page</div>',
