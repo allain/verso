@@ -1,6 +1,8 @@
 # Verso
 A framework for writing very dumb single page apps.
 
+[![Build Status](https://travis-ci.org/allain/verso.svg?branch=master)](https://travis-ci.org/allain/verso)
+
 Some single page apps are almost all static content.
 For those apps, a small client library that just swaps
 out the innerHTML of a dom node when navitation occurs, might be all that's needed.
