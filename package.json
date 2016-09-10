@@ -10,7 +10,7 @@
   "author": "Allain Lalonde <allain.lalonde@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "canister": "^1.7.0",
+    "canister": "^1.7.1",
     "first-mapped": "^0.2.0",
     "map-in": "^1.0.2"
   },

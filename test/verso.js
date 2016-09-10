@@ -86,7 +86,7 @@ test('run updates the dom and calls customize on it if its defined', function (t
       render: function () {
         return '<div>Testing</div>'
       },
-      customize: function (el) {
+      customize: el => {
         el.innerHTML = el.innerHTML.toUpperCase()
       }
     }
@@ -117,11 +117,11 @@ test('render may just be a string', function (t) {
   return verso({
     '/test': {
       render: 'testing',
-      customize: function (el) {
+      customize: el => {
         el.innerHTML = el.innerHTML.toUpperCase()
       }
     }
-  }).run('/test', {}).then(function (el) {
+  }).run('/test', {}).then(el => {
     t.equal(el.innerHTML, 'TESTING')
   })
 })
@@ -131,7 +131,7 @@ test('compile only renders from root', function (t) {
     '/': 'a',
     '/test': 'test'
   }).compile()
-      .then(function (result) {
+      .then(result => {
         t.deepEqual(result, {
           '/': 'a'
         })
@@ -162,7 +162,7 @@ test('compile handles loops', function(t) {
     '/b': '<div><a href="/a">A</a></div>',
     '/c': 'leaf C'
   }).compile()
-      .then(function(result) {
+      .then(result => {
         t.deepEqual(result, {
           '/': '<div><a href="/a">A</a></div>',
           '/a': '<div><a href="/b">B</a></div>',
@@ -175,15 +175,35 @@ test('compile handles loops', function(t) {
 test('compile handles dynamic pages', function(t) {
   return verso({
     '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
-    '/:name': function(name) {
-      return '<div>' + name + '</div>'
-    }
+    '/:name': name => `<div>${name}</div>`
   }).compile()
-      .then(function(result) {
+      .then((result) => {
         t.deepEqual(result, {
           '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
           '/a': '<div>a</div>',
           '/b': '<div>b</div>'
+        })
+      })
+})
+
+test('real world compile example', function(t) {
+  return verso({
+    '/': contacts => `<div>${contacts.map(contact => `<a href="/contact/${contact.id}">${contact.name}</a>`).join('')}</div>`,
+    '/contact/:id': (id, contacts) => {
+      var contact = contacts.find(contact => contact.id == id)
+      return `<div>${contact.name}'s Page</div>`
+    }
+  }, {
+    contacts: [
+      {id: 1, name: 'Allain'},
+      {id: 2, name: 'Debby'}
+    ]
+  }).compile()
+      .then(function(result) {
+        t.deepEqual(result, {
+          '/': '<div><a href="/contact/1">Allain</a><a href="/contact/2">Debby</a></div>',
+          '/contact/1': '<div>Allain\'s Page</div>',
+          '/contact/2': '<div>Debby\'s Page</div>'
         })
       })
 })
