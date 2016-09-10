@@ -1,9 +1,9 @@
 const test = require('blue-tape')
-const pager = require('../lib/pager')
+const verso = require('..')
 
 test('setup must have at least 1 page', t => {
   try {
-    pager({})
+    verso({})
     t.fail('should throw')
   } catch(err) {
     t.equal(err.message, 'no pages defined')
@@ -13,7 +13,7 @@ test('setup must have at least 1 page', t => {
 
 test('pages must be keyed by valud uris', t => {
   try {
-    pager({
+    verso({
       'invalid': {}
     })
   } catch(err) {
@@ -23,7 +23,7 @@ test('pages must be keyed by valud uris', t => {
 })
 
 test('render rejects when uri does not match', t => {
-  let p = pager({
+  let p = verso({
     '/': {}
   })
 
@@ -33,7 +33,7 @@ test('render rejects when uri does not match', t => {
 })
 
 test('render generates html', t => {
-  let p = pager({
+  let p = verso({
     '/': {
       render: () => {
         return '<!DOCTYPE html><html><h1>Testing</h1></html>'
@@ -47,7 +47,7 @@ test('render generates html', t => {
 })
 
 test('passes params to render', t => {
-  let p = pager({
+  let p = verso({
     '/a/:a/': {
       render: (a) => {
         return `<!DOCTYPE html><html><h1>${a}</h1></html>`
@@ -60,8 +60,8 @@ test('passes params to render', t => {
   })
 })
 
-test('render uses context passed into pager factory', t => {
-  let p = pager({
+test('render uses context passed into verso factory', t => {
+  let p = verso({
     '/a': {
       render: function (b) {
         return b
@@ -75,7 +75,7 @@ test('render uses context passed into pager factory', t => {
 })
 
 test('run updates the dom', t => {
-  let p = pager({
+  let p = verso({
     '/test': {
       render: () => {
         return '<div>Testing</div>'
@@ -90,7 +90,7 @@ test('run updates the dom', t => {
 })
 
 test('run updates the dom and calls customize on it if its defined', t => {
-  let p = pager({
+  let p = verso({
     '/test': {
       render: () => '<div>Testing</div>',
       customize: (el) => {
@@ -106,7 +106,7 @@ test('run updates the dom and calls customize on it if its defined', t => {
 })
 
 test('page spec may be just be a function', t => {
-  let p = pager({
+  let p = verso({
     '/test': () => {
       return 'testing'
     }

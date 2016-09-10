@@ -1,7 +1,7 @@
 {
-  "name": "pager",
+  "name": "verso",
   "version": "0.1.0",
-  "description": "An attempt to reduce the client side complexity considerably when writing mobile apps\"",
+  "description": "A playground for writing mobile single page apps that are primarily all static.",
   "main": "index.js",
   "scripts": {
     "format": "standard-format --write",
@@ -10,9 +10,11 @@
   "author": "Allain Lalonde <allain.lalonde@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "blue-tape": "^1.0.0",
     "canister": "^1.7.0",
-    "map-in": "^1.0.2",
-    "testdouble": "^1.6.1"
+    "first-mapped": "^0.2.0",
+    "map-in": "^1.0.2"
+  },
+  "devDependencies": {
+    "blue-tape": "^1.0.0"
   }
 }

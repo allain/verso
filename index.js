@@ -1,1 +1,1 @@
-module.exports = require('./lib/pager.js')
+module.exports = require('./lib/verso.js')
