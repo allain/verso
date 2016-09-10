@@ -25,8 +25,9 @@ test('pages must be keyed by valud uris', t => {
 test('render rejects when uri does not match', t => {
   return verso({
     '/': {}
-  }).render('/missing').then(t.fail, function (err) {
-    t.equal(err.message, 'missing page: /missing')
+  }).render('/missing').then(t.fail, err => {
+    t.equal(err.code, 404)
+    t.equal(err.message, 'page not found: /missing')
   })
 })
 
@@ -73,7 +74,7 @@ test('run updates the dom', t => {
     })
 })
 
-test('run updates the dom and calls customize on it if its defined',  t => {
+test('run updates the dom and calls customize on it if its defined', t => {
   return verso({
     '/test': {
       render: '<div>Testing</div>',
@@ -120,11 +121,11 @@ test('compile only renders from root', t => {
     '/': 'a',
     '/test': 'test'
   }).compile()
-      .then(result => {
-        t.deepEqual(result, {
-          '/': 'a'
-        })
+    .then(result => {
+      t.deepEqual(result, {
+        '/': 'a'
       })
+    })
 })
 
 test('compile crawls out from root', t => {
@@ -134,14 +135,14 @@ test('compile crawls out from root', t => {
     '/b': 'leaf B',
     '/c': 'leaf C'
   }).compile()
-      .then(result => {
-        t.deepEqual(result, {
-          '/': '<div><a href="/a">A</a></div>',
-          '/a': '<div><a href="/b">B</a><a href="/c">C</a></div>',
-          '/b': 'leaf B',
-          '/c': 'leaf C'
-        })
+    .then(result => {
+      t.deepEqual(result, {
+        '/': '<div><a href="/a">A</a></div>',
+        '/a': '<div><a href="/b">B</a><a href="/c">C</a></div>',
+        '/b': 'leaf B',
+        '/c': 'leaf C'
       })
+    })
 })
 
 test('compile handles loops', t => {
@@ -151,28 +152,27 @@ test('compile handles loops', t => {
     '/b': '<div><a href="/a">A</a></div>',
     '/c': 'leaf C'
   }).compile()
-      .then(result => {
-        t.deepEqual(result, {
-          '/': '<div><a href="/a">A</a></div>',
-          '/a': '<div><a href="/b">B</a></div>',
-          '/b': '<div><a href="/a">A</a></div>'
-        })
+    .then(result => {
+      t.deepEqual(result, {
+        '/': '<div><a href="/a">A</a></div>',
+        '/a': '<div><a href="/b">B</a></div>',
+        '/b': '<div><a href="/a">A</a></div>'
       })
+    })
 })
-
 
 test('compile handles dynamic pages', t => {
   return verso({
     '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
     '/:name': name => `<div>${name}</div>`
   }).compile()
-      .then(result => {
-        t.deepEqual(result, {
-          '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
-          '/a': '<div>a</div>',
-          '/b': '<div>b</div>'
-        })
+    .then(result => {
+      t.deepEqual(result, {
+        '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
+        '/a': '<div>a</div>',
+        '/b': '<div>b</div>'
       })
+    })
 })
 
 test('real world compile example', t => {
@@ -188,11 +188,11 @@ test('real world compile example', t => {
       {id: 2, name: 'Debby'}
     ]
   }).compile()
-      .then(result => {
-        t.deepEqual(result, {
-          '/': '<div><a href="/contact/1">Allain</a><a href="/contact/2">Debby</a></div>',
-          '/contact/1': '<div>Allain\'s Page</div>',
-          '/contact/2': '<div>Debby\'s Page</div>'
-        })
+    .then(result => {
+      t.deepEqual(result, {
+        '/': '<div><a href="/contact/1">Allain</a><a href="/contact/2">Debby</a></div>',
+        '/contact/1': "<div>Allain's Page</div>",
+        '/contact/2': "<div>Debby's Page</div>"
       })
+    })
 })

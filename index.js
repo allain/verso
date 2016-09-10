@@ -27,6 +27,15 @@ function render (uri) {
 }
 
 function run (uri, el) {
+  var domUpdater
+  if (typeof el === 'function') {
+    domUpdater = el
+  } else {
+    domUpdater = function (html) {
+      el.innerHTML = html
+      return el
+    }
+  }
   var self = this
 
   return requireMatch(this.pages, uri)
@@ -38,30 +47,33 @@ function run (uri, el) {
         self.context || {},
         match.params
       ]).run(render)
-        .then(function (html) {
-          el.innerHTML = html
-        })
+        .then(domUpdater)
 
       if (customize) {
-        result = result.then(function () {
+        result = result.then(function (el) {
           return new Canister([
             self.context || {},
             match.params,
             {el: el}
-          ]).run(customize)
+          ]).run(customize).then(() => {
+            return el
+          })
         })
       }
 
-      return result.then(function () { return el })
+      return result.then(function (el) { return el })
     })
 }
 
 function requireMatch (pages, uri) {
   return new Promise(function (resolve, reject) {
     var match = matchPage(uri, pages)
-    return match
-      ? resolve(match)
-      : reject(new Error('missing page: ' + uri))
+    if (match)
+      return resolve(match)
+
+    let err = new Error('page not found: ' + uri)
+    err.code = 404
+    reject(err)
   })
 }
 
@@ -116,40 +128,38 @@ function hasKeys (options) {
   return Object.keys(options || {}).length > 0
 }
 
-function compile() {
+function compile () {
   var self = this
   var result = {}
-  return crawl('/', result).then(function() {
+  return crawl('/', result).then(function () {
     return result
   })
 
-  function crawl(uri, result) {
+  function crawl (uri, result) {
     if (result[uri]) return
 
     return self.render(uri).then(function (html) {
       result[uri] = html
 
-      return Promise.all(extractReferences(html).map(function(uri) {
+      return Promise.all(extractReferences(html).map(function (uri) {
         return crawl(uri, result)
       }))
     })
   }
 }
 
-
-
 function extractReferences (html) {
   var result = []
-  var re = /href="([^"]+)"/g;
+  var re = /href="([^"]+)"/g
 
-  var m;
+  var m
 
   do {
-    m = re.exec(html);
+    m = re.exec(html)
     if (m) {
       result.push(m[1])
     }
-  } while (m);
+  } while (m)
 
   return result
 }
