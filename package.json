@@ -1,7 +1,7 @@
 {
   "name": "verso",
   "version": "0.1.0",
-  "description": "A playground for writing mobile single page apps that are primarily all static.",
+  "description": "A framework for writing very dumb single page apps.",
   "main": "index.js",
   "scripts": {
     "format": "standard-format --write",
