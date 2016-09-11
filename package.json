@@ -5,17 +5,19 @@
   "main": "index.js",
   "scripts": {
     "format": "standard-format --write",
-    "test": "blue-tape test/**/*.js"
+    "test": "blue-tape test/*.js test/**/*.js"
   },
   "author": "Allain Lalonde <allain.lalonde@gmail.com>",
   "license": "ISC",
   "dependencies": {
-    "canister": "^1.7.1",
+    "canister": "^1.7.3",
     "first-mapped": "^0.2.0",
-    "map-in": "^1.0.2"
+    "map-in": "^1.0.2",
+    "neo-async": "^2.0.1"
   },
   "devDependencies": {
     "blue-tape": "^1.0.0",
-    "standard-format": "^2.2.3"
+    "standard-format": "^2.2.3",
+    "object-values": "^1.0.0"
   }
 }

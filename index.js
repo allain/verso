@@ -2,6 +2,7 @@ var Canister = require('canister')
 var mapIn = require('map-in')
 var firstMapped = require('first-mapped')
 var parseUri = require('./lib/parse-uri')
+var async = require('neo-async')
 
 function Verso (pages, context) {
   if (!(this instanceof Verso))
@@ -18,63 +19,95 @@ Verso.prototype = {
   compile: compile
 }
 
-function render (uri) {
+function render (uri, cb) {
   var self = this
-  return requireMatch(this.pages, uri)
-    .then(function (match) {
-      return new Canister([self.context || {}, match.params]).run(match.page.render)
-    })
-}
+  var result
 
-function run (uri, el) {
-  var domUpdater
-  if (typeof el === 'function') {
-    domUpdater = el
-  } else {
-    domUpdater = function (html) {
-      el.innerHTML = html
-      return el
-    }
-  }
-  var self = this
-
-  return requireMatch(this.pages, uri)
-    .then(function (match) {
-      var render = match.page.render
-      var customize = match.page.customize
-
-      var result = new Canister([
-        self.context || {},
-        match.params
-      ]).run(render)
-        .then(domUpdater)
-
-      if (customize) {
-        result = result.then(function (el) {
-          return new Canister([
-            self.context || {},
-            match.params,
-            {el: el}
-          ]).run(customize).then(() => {
-            return el
-          })
-        })
+  if (!cb) {
+    result = new Promise(function (resolve, reject) {
+      cb = function (err, val) {
+        return err ? reject(err) : resolve(val)
       }
-
-      return result.then(function (el) { return el })
     })
+  }
+
+  requireMatch(this.pages, uri, function (err, match) {
+    if (err) return cb(err)
+
+    var render = match.page.render
+    if (typeof render === 'string')
+      return cb(null, render)
+
+    return new Canister([self.context || {}, match.params]).run(render, cb)
+  })
+
+  return result
 }
 
-function requireMatch (pages, uri) {
-  return new Promise(function (resolve, reject) {
-    var match = matchPage(uri, pages)
-    if (match)
-      return resolve(match)
+function run (uri, el, cb) {
+  var self = this
 
-    let err = new Error('page not found: ' + uri)
-    err.code = 404
-    reject(err)
-  })
+  var result
+  if (!cb) {
+    result = new Promise(function (resolve, reject) {
+      cb = function (err, val) {
+        return err ? reject(err) : resolve(val)
+      }
+    })
+  }
+
+  var domUpdater = buildDefaultDomUpdater(el)
+
+  requireMatch(this.pages, uri, function (err, match) {
+    if (err) return cb(err)
+
+    var render = match.page.render
+    var customize = match.page.customize
+
+    performRender(match, function (err, html) {
+      if (err) return cb(err)
+
+      domUpdater(html) // async
+
+      performCustomize(el, match, cb)
+    })
+  }, cb)
+
+  function performRender (match, cb) {
+    var render = match.page.render
+    if (typeof render === 'string')
+      return cb(null, render)
+
+    new Canister([self.context || {}, match.params]).run(render, cb)
+  }
+
+  function performCustomize (el, match, cb) {
+    if (!match.page.customize)
+      return cb(null, el)
+
+    new Canister([self.context || {}, match.params, {el: el}]).run(match.page.customize, function (err) {
+      return err ? cb(err) : cb(null, el)
+    })
+  }
+
+  return result
+}
+
+function buildDefaultDomUpdater (el) {
+  return (typeof el === 'function') ? el : function (html) {
+    el.innerHTML = html
+    return el
+  }
+}
+
+function requireMatch (pages, uri, cb) {
+  var match = matchPage(uri, pages)
+  if (match)
+    return cb(null, match)
+
+  let err = new Error('page not found: ' + uri)
+  err.code = 404
+  cb(err)
 }
 
 function matchPage (uri, pages) {
@@ -110,15 +143,8 @@ function expandSpec (spec) {
   if (typeof spec === 'string') {
     html = spec
     return {
-      render: function () {
-        return html
-      }
+      render: html
     }
-  }
-
-  if (typeof spec.render === 'string') {
-    html = spec.render
-    spec.render = function () { return html }
   }
 
   return spec
@@ -128,37 +154,50 @@ function hasKeys (options) {
   return Object.keys(options || {}).length > 0
 }
 
-function compile () {
+function compile (cb) {
   var self = this
-  var result = {}
-  return crawl('/', result).then(function () {
-    return result
+
+  var compiled = {}
+
+  var result
+  if (!cb) {
+    result = new Promise(function (resolve, reject) {
+      cb = function (err, val) {
+        return err ? reject(err) : resolve(val)
+      }
+    })
+  }
+
+  crawl('/', function (err) {
+    return err ? cb(err) : cb(null, compiled)
   })
 
-  function crawl (uri, result) {
-    if (result[uri]) return
+  return result
 
-    return self.render(uri).then(function (html) {
-      result[uri] = html
+  function crawl (uri, cb) {
+    if (compiled[uri]) return cb()
 
-      return Promise.all(extractReferences(html).map(function (uri) {
-        return crawl(uri, result)
-      }))
+    self.render(uri, function (err, html) {
+      compiled[uri] = html
+
+      var uncrawledRefs = extractReferences(html).filter(uri => !compiled[uri])
+
+      async.each(uncrawledRefs, function (uri, cb) {
+        crawl(uri, cb)
+      }, cb)
     })
   }
 }
 
+var re = /href="([^"]+)"/g
+
 function extractReferences (html) {
   var result = []
-  var re = /href="([^"]+)"/g
 
   var m
-
   do {
-    m = re.exec(html)
-    if (m) {
+    if (m = re.exec(html))
       result.push(m[1])
-    }
   } while (m)
 
   return result
