@@ -31,6 +31,17 @@ test('run updates the dom', t => {
     })
 })
 
+test('customizations can be given as a string', t => {
+  return verso({
+    '/test': {
+      render: '<div>Testing</div>',
+      customize: 'el => {\nel.innerHTML = el.innerHTML.toUpperCase()\n}'
+    }
+  }).run('/test', {}).then(el => {
+    t.equal(el.innerHTML, '<DIV>TESTING</DIV>')
+  })
+})
+
 test('run updates the dom and calls customize on it if its defined', t => {
   return verso({
     '/test': {

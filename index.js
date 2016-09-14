@@ -1,22 +1,37 @@
 var Canister = require('canister')
 var mapIn = require('map-in')
 var firstMapped = require('first-mapped')
-var parseUri = require('./lib/parse-uri')
 var async = require('neo-async')
+
+var parseUri = require('./lib/parse-uri')
+var crawl = require('./lib/crawl')
 
 function Verso (pages, context) {
   if (!(this instanceof Verso))
     return new Verso(pages, context)
 
-  checkOptions(pages)
+  checkPages(pages)
+
   this.context = context
-  this.pages = mapIn(pages, expandSpec)
+
+	this.dynamicPages = mapIn(pages, function(spec, uri) {
+    if (uri.indexOf(':') !== -1) {
+      return expandSpec(spec)
+		}
+	}, true)
+
+	this.staticPages = mapIn(pages, function(spec, uri) {
+		if (uri.indexOf(':') === -1) {
+      return expandSpec(spec)
+		}
+	}, true)
 }
 
 Verso.prototype = {
   render: render,
   run: run,
-  compile: compile
+  compile: compile,
+	match: matchPages
 }
 
 function render (uri, cb) {
@@ -31,14 +46,10 @@ function render (uri, cb) {
     })
   }
 
-  requireMatch(this.pages, uri, function (err, match) {
+  requireMatch(this, uri, function (err, matches) {
     if (err) return cb(err)
 
-    var render = match.page.render
-    if (typeof render === 'string')
-      return cb(null, render)
-
-    return new Canister([self.context || {}, match.params]).run(render, cb)
+    performRender(self, matches, cb)
   })
 
   return result
@@ -58,28 +69,17 @@ function run (uri, el, cb) {
 
   var domUpdater = buildDefaultDomUpdater(el)
 
-  requireMatch(this.pages, uri, function (err, match) {
+  requireMatch(this, uri, function (err, matches) {
     if (err) return cb(err)
 
-    var render = match.page.render
-    var customize = match.page.customize
-
-    performRender(match, function (err, html) {
+    performRender(self, matches, function (err, html) {
       if (err) return cb(err)
 
       domUpdater(html) // async
 
-      performCustomize(el, match, cb)
+      performCustomize(el, matches[0], cb)
     })
   }, cb)
-
-  function performRender (match, cb) {
-    var render = match.page.render
-    if (typeof render === 'string')
-      return cb(null, render)
-
-    new Canister([self.context || {}, match.params]).run(render, cb)
-  }
 
   function performCustomize (el, match, cb) {
     if (!match.page.customize)
@@ -100,34 +100,53 @@ function buildDefaultDomUpdater (el) {
   }
 }
 
-function requireMatch (pages, uri, cb) {
-  var match = matchPage(uri, pages)
-  if (match)
-    return cb(null, match)
+function requireMatch (verso, uri, cb) {
+  var matches = matchPages(verso, uri)
+  if (matches)
+    return cb(null, matches)
 
   let err = new Error('page not found: ' + uri)
   err.code = 404
   cb(err)
 }
 
-function matchPage (uri, pages) {
-  return firstMapped(pages, function (page, pattern) {
+function matchPages (verso, uri) {
+  var matches = []
+
+	var page
+	if (page = verso.staticPages[uri]) {
+    matches.push({
+			pattern: uri,
+			uri: uri,
+			params: {},
+			page: page
+		})
+	}
+
+  var dynamicPage = firstMapped(verso.dynamicPages, function (page, pattern) {
     var params = parseUri(pattern, uri)
     if (params) {
       return {
-        params: params,
+        pattern: pattern,
         uri: uri,
+        params: params,
         page: page
       }
     }
   })
+
+  if (dynamicPage) {
+    matches.push(dynamicPage)
+  }
+
+  return matches.length ? matches : null
 }
 
-function checkOptions (options) {
-  if (!hasKeys(options))
+function checkPages(pages) {
+  if (!hasKeys(pages))
     throw new Error('no pages defined')
 
-  var invalidUri = Object.keys(options).find(function (k) {
+  var invalidUri = Object.keys(pages).find(function (k) {
     return !k.match(/^(\/:?[a-z0-9-]+)*\/?$/)
   })
 
@@ -147,6 +166,10 @@ function expandSpec (spec) {
     }
   }
 
+	if (typeof spec.customize === 'string') {
+    spec.customize = eval(spec.customize)
+	}
+
   return spec
 }
 
@@ -155,7 +178,7 @@ function hasKeys (options) {
 }
 
 function compile (cb) {
-  var self = this
+  var verso = this
 
   var compiled = {}
 
@@ -168,39 +191,46 @@ function compile (cb) {
     })
   }
 
-  crawl('/', function (err) {
-    return err ? cb(err) : cb(null, compiled)
-  })
+  crawl(verso, function(err, compiled) {
+    if (err) return cb(err)
+	
+	  each(verso.staticPages, function(page, uri) {
+		  if (!compiled[uri] || !page.customize) return
 
-  return result
+			compiled[uri] = {
+				render: compiled[uri],
+				customize: page.customize.toString().replace(/\s*\n\s*/g, '\n')
+			}
+		})
 
-  function crawl (uri, cb) {
-    if (compiled[uri]) return cb()
+		each(verso.dynamicPages, function(page, uri) {
+			if (page.customize) {
+        compiled[uri] = { customize: page.customize.toString().replace(/\s*\n\s*/g, '\n') }
+			}
+		})
 
-    self.render(uri, function (err, html) {
-      compiled[uri] = html
+	  cb(null, compiled)	
+	})
 
-      var uncrawledRefs = extractReferences(html).filter(uri => !compiled[uri])
-
-      async.each(uncrawledRefs, function (uri, cb) {
-        crawl(uri, cb)
-      }, cb)
-    })
-  }
+	return result
 }
 
-var re = /href="([^"]+)"/g
+function each(obj, iter) {
+  Object.keys(obj).forEach(function (key) {
+   iter(obj[key], key) 
+	})
+}
 
-function extractReferences (html) {
-  var result = []
+function performRender(verso, matches, cb) {
+  async.reduce(matches, null, function(render, match, cb) {
+    if (render) return cb(null, render)
 
-  var m
-  do {
-    if (m = re.exec(html))
-      result.push(m[1])
-  } while (m)
+    var renderer = match.page.render
+    if (typeof renderer === 'string')
+      return cb(null, renderer)
 
-  return result
+    return new Canister([verso.context || {}, match.params]).run(renderer, cb)
+  }, cb)
 }
 
 module.exports = Verso

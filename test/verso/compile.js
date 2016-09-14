@@ -53,13 +53,44 @@ test('compile handles dynamic pages', t => {
     '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
     '/:name': name => `<div>${name}</div>`
   }).compile()
-    .then(result => {
-      t.deepEqual(result, {
-        '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
-        '/a': '<div>a</div>',
-        '/b': '<div>b</div>'
+      .then(result => {
+        t.deepEqual(result, {
+          '/': '<div><a href="/a">A</a><a href="/b">B</a></div>',
+          '/a': '<div>a</div>',
+          '/b': '<div>b</div>'
+        })
       })
-    })
+})
+
+
+test('compile retains customizations', t => {
+  return verso({
+    '/': {
+      render: '<div><a href="/a">A</a><a href="/b">B</a></div>',
+      customize: (el) => {
+        el.innerHTML = el.innerHTML.toUpperCase()
+      }
+    },
+    '/:name': {
+      render: name => `<div>${name}</div>`,
+      customize: (el) => {
+        el.innerHTML = el.innerHTML.toUpperCase()
+      }
+    }
+  }).compile()
+      .then(result => {
+        t.deepEqual(result, {
+          '/': {
+            render: '<div><a href="/a">A</a><a href="/b">B</a></div>',
+            customize: '(el) => {\nel.innerHTML = el.innerHTML.toUpperCase()\n}'
+          },
+          '/:name': {
+            customize: '(el) => {\nel.innerHTML = el.innerHTML.toUpperCase()\n}'
+          },
+          '/a': '<div>a</div>',
+          '/b': '<div>b</div>'
+        })
+      })
 })
 
 test('real world compile example', t => {
